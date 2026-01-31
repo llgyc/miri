@@ -11,7 +11,7 @@
 #include "ResultHandling.hpp"
 
 // GenMC headers:
-#include "ExecutionGraph/EventLabel.hpp"
+#include "Execution/EventLabel.hpp"
 #include "Support/MemOrdering.hpp"
 #include "Support/RMWOps.hpp"
 #include "Verification/Config.hpp"

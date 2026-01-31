@@ -8,8 +8,8 @@
 
 // GenMC headers:
 #include "ADT/value_ptr.hpp"
-#include "ExecutionGraph/EventLabel.hpp"
-#include "ExecutionGraph/LoadAnnotation.hpp"
+#include "Execution/EventLabel.hpp"
+#include "Execution/LoadAnnotation.hpp"
 #include "Runtime/InterpreterEnumAPI.hpp"
 #include "Static/ModuleID.hpp"
 #include "Support/ASize.hpp"
@@ -47,13 +47,13 @@ auto MiriGenmcShim::schedule_next(
         [](auto&& arg) {
             using T = std::decay_t<decltype(arg)>;
             if constexpr (std::is_same_v<T, int>)
-                return SchedulingResult { ExecutionState::Ok, static_cast<int32_t>(arg) };
+                return SchedulingResult { ExecutionStatus::Ok, static_cast<int32_t>(arg) };
             else if constexpr (std::is_same_v<T, Blocked>)
-                return SchedulingResult { ExecutionState::Blocked, 0 };
+                return SchedulingResult { ExecutionStatus::Blocked, 0 };
             else if constexpr (std::is_same_v<T, Error>)
-                return SchedulingResult { ExecutionState::Error, 0 };
+                return SchedulingResult { ExecutionStatus::Error, 0 };
             else if constexpr (std::is_same_v<T, Finished>)
-                return SchedulingResult { ExecutionState::Finished, 0 };
+                return SchedulingResult { ExecutionStatus::Finished, 0 };
             else
                 static_assert(false, "non-exhaustive visitor!");
         },
