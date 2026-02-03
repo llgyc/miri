@@ -216,11 +216,6 @@ struct MiriGenmcShim : private GenMCDriver {
         ERROR_ON(tid >= threads_action_.size(), "ThreadId out of bounds");
         threads_action_[tid].event.index += count;
     }
-    /** Decrement the event index in the given thread by `count` and return the new event. */
-    inline void dec_pos(ThreadId tid, unsigned int count) {
-        ERROR_ON(tid >= threads_action_.size(), "ThreadId out of bounds");
-        threads_action_[tid].event.index -= count;
-    }
 
     /**
      * Helper function for loads that need to reset the event counter when no value is returned.
