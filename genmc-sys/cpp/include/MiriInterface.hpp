@@ -218,24 +218,6 @@ struct MiriGenmcShim : private GenMCDriver {
     }
 
     /**
-     * Helper function for loads that need to reset the event counter when no value is returned.
-     * Same syntax as `GenMCDriver::handleLoad`, but this takes a thread id instead of an Event.
-     * Automatically calls `inc_pos` and `dec_pos` where needed for the given thread.
-     */
-    template <EventLabel::EventLabelKind k, typename... Ts>
-    auto handle_load_reset_if_none(ThreadId tid, std::optional<SVal> old_val, Ts&&... params)
-        -> HandleResult<SVal> {
-        const auto ret = GenMCDriver::handleLoad<k>(
-            nullptr,
-            curr_pos(tid),
-            old_val,
-            std::forward<Ts>(params)...
-        );
-        inc_pos(tid, ret.count);
-        return ret;
-    }
-
-    /**
      * GenMC uses the term `Action` to refer to a struct of:
      * - `ActionKind`, storing whether the next instruction in a thread may be a load
      * - `Event`, storing the most recent event index added for a thread

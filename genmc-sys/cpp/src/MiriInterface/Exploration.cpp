@@ -89,13 +89,15 @@ void MiriGenmcShim::handle_assume_block(ThreadId thread_id, AssumeType assume_ty
     MemOrdering ord,
     GenmcScalar old_val
 ) -> LoadResult {
-    const auto ret = handle_load_reset_if_none<EventLabel::EventLabelKind::Read>(
-        thread_id,
+    const auto ret = GenMCDriver::handleLoad<EventLabel::EventLabelKind::Read>(
+        nullptr,
+        curr_pos(thread_id),
         GenmcScalarExt::try_to_sval(old_val),
         ord,
         SAddr(address),
         ASize(size)
     );
+    inc_pos(thread_id, ret.count);
     if (const auto* err = std::get_if<VerificationError>(&ret.result))
         return LoadResultExt::from_error(format_error(*err));
     const auto* ret_val = std::get_if<SVal>(&ret.result);
@@ -191,10 +193,9 @@ void MiriGenmcShim::handle_fence(ThreadId thread_id, MemOrdering ord) {
     // into a load and a store component. This means we can have for example `AcqRel` loads and
     // stores, but this is intended for RMW operations.
 
-    // Somewhat confusingly, the GenMC term for RMW read/write labels is
-    // `FaiRead` and `FaiWrite`.
-    const auto load_ret = handle_load_reset_if_none<EventLabel::EventLabelKind::FaiRead>(
-        thread_id,
+    const auto load_ret = GenMCDriver::handleLoad<EventLabel::EventLabelKind::FaiRead>(
+        nullptr,
+        curr_pos(thread_id),
         GenmcScalarExt::try_to_sval(old_val),
         ordering,
         SAddr(address),
@@ -203,6 +204,7 @@ void MiriGenmcShim::handle_fence(ThreadId thread_id, MemOrdering ord) {
         GenmcScalarExt::to_sval(rhs_value),
         EventDeps()
     );
+    inc_pos(thread_id, load_ret.count);
     if (const auto* err = std::get_if<VerificationError>(&load_ret.result))
         return ReadModifyWriteResultExt::from_error(format_error(*err));
 
@@ -256,8 +258,9 @@ void MiriGenmcShim::handle_fence(ThreadId thread_id, MemOrdering ord) {
     auto expectedVal = GenmcScalarExt::to_sval(expected_value);
     auto new_val = GenmcScalarExt::to_sval(new_value);
 
-    const auto load_ret = handle_load_reset_if_none<EventLabel::EventLabelKind::CasRead>(
-        thread_id,
+    const auto load_ret = GenMCDriver::handleLoad<EventLabel::EventLabelKind::CasRead>(
+        nullptr,
+        curr_pos(thread_id),
         GenmcScalarExt::try_to_sval(old_val),
         success_ordering,
         SAddr(address),
@@ -265,6 +268,7 @@ void MiriGenmcShim::handle_fence(ThreadId thread_id, MemOrdering ord) {
         expectedVal,
         new_val
     );
+    inc_pos(thread_id, load_ret.count);
     if (const auto* err = std::get_if<VerificationError>(&load_ret.result))
         return CompareExchangeResultExt::from_error(format_error(*err));
     const auto* ret_val = std::get_if<SVal>(&load_ret.result);
@@ -384,14 +388,16 @@ auto MiriGenmcShim::handle_mutex_lock(ThreadId thread_id, uint64_t address, uint
     // access, if there previously was a non-atomic initializing access. We set the initial state of
     // a mutex to be "unlocked".
     const auto old_val = MutexState::UNLOCKED;
-    const auto load_ret = handle_load_reset_if_none<EventLabel::EventLabelKind::LockCasRead>(
-        thread_id,
+    const auto load_ret = GenMCDriver::handleLoad<EventLabel::EventLabelKind::LockCasRead>(
+        nullptr,
+        curr_pos(thread_id),
         old_val,
         address,
         size,
         annot,
         EventDeps()
     );
+    inc_pos(thread_id, load_ret.count);
     if (const auto* err = std::get_if<VerificationError>(&load_ret.result))
         return MutexLockResultExt::from_error(format_error(*err));
     // If we get a `Reset`, GenMC decided that this lock operation should not yet run, since it
