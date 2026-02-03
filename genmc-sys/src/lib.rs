@@ -412,6 +412,12 @@ mod ffi {
             memory_ordering: MemOrdering,
             old_value: GenmcScalar,
         ) -> LoadResult;
+        fn handle_na_load(
+            self: Pin<&mut MiriGenmcShim>,
+            thread_id: i32,
+            address: u64,
+            size: u64,
+        ) -> LoadResult;
         fn handle_read_modify_write(
             self: Pin<&mut MiriGenmcShim>,
             thread_id: i32,
@@ -443,6 +449,12 @@ mod ffi {
             old_value: GenmcScalar,
             memory_ordering: MemOrdering,
         ) -> StoreResult;
+        fn handle_na_store(
+            self: Pin<&mut MiriGenmcShim>,
+            thread_id: i32,
+            address: u64,
+            size: u64,
+        ) -> StoreResult;
         fn handle_fence(
             self: Pin<&mut MiriGenmcShim>,
             thread_id: i32,
@@ -455,7 +467,7 @@ mod ffi {
             thread_id: i32,
             size: u64,
             alignment: u64,
-        ) -> u64;
+        ) -> MallocResult;
         /// Returns true if an error was found.
         fn handle_free(
             self: Pin<&mut MiriGenmcShim>,

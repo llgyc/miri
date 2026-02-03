@@ -94,6 +94,7 @@ struct MiriGenmcShim : private GenMCDriver {
         MemOrdering ord,
         GenmcScalar old_val
     );
+    [[nodiscard]] LoadResult handle_na_load(ThreadId thread_id, uint64_t address, uint64_t size);
     [[nodiscard]] ReadModifyWriteResult handle_read_modify_write(
         ThreadId thread_id,
         uint64_t address,
@@ -122,12 +123,13 @@ struct MiriGenmcShim : private GenMCDriver {
         GenmcScalar old_val,
         MemOrdering ord
     );
+    [[nodiscard]] StoreResult handle_na_store(ThreadId thread_id, uint64_t address, uint64_t size);
 
     void handle_fence(ThreadId thread_id, MemOrdering ord);
 
     /**** Memory (de)allocation ****/
 
-    auto handle_malloc(ThreadId thread_id, uint64_t size, uint64_t alignment) -> uint64_t;
+    auto handle_malloc(ThreadId thread_id, uint64_t size, uint64_t alignment) -> MallocResult;
 
     /** Returns null on success, or an error string if an error occurs. */
     auto handle_free(ThreadId thread_id, uint64_t address) -> std::unique_ptr<std::string>;
@@ -213,29 +215,6 @@ struct MiriGenmcShim : private GenMCDriver {
     inline void inc_pos(ThreadId tid, unsigned int count) {
         ERROR_ON(tid >= threads_action_.size(), "ThreadId out of bounds");
         threads_action_[tid].event.index += count;
-    }
-    /** Decrement the event index in the given thread by `count` and return the new event. */
-    inline void dec_pos(ThreadId tid, unsigned int count) {
-        ERROR_ON(tid >= threads_action_.size(), "ThreadId out of bounds");
-        threads_action_[tid].event.index -= count;
-    }
-
-    /**
-     * Helper function for loads that need to reset the event counter when no value is returned.
-     * Same syntax as `GenMCDriver::handleLoad`, but this takes a thread id instead of an Event.
-     * Automatically calls `inc_pos` and `dec_pos` where needed for the given thread.
-     */
-    template <EventLabel::EventLabelKind k, typename... Ts>
-    auto handle_load_reset_if_none(ThreadId tid, std::optional<SVal> old_val, Ts&&... params)
-        -> HandleResult<SVal> {
-        const auto pos = inc_pos(tid, 1);
-        const auto ret =
-            GenMCDriver::handleLoad<k>(nullptr, pos, old_val, std::forward<Ts>(params)...);
-        // If we didn't get a value, we have to reset the index of the current thread.
-        if (!std::holds_alternative<SVal>(ret)) {
-            dec_pos(tid, 1);
-        }
-        return ret;
     }
 
     /**
