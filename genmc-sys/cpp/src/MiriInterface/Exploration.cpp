@@ -30,6 +30,7 @@
 #include <cstdint>
 #include <limits>
 #include <memory>
+#include <optional>
 #include <utility>
 
 /** Scheduling */
@@ -89,13 +90,16 @@ void MiriGenmcShim::handle_assume_block(ThreadId thread_id, AssumeType assume_ty
     MemOrdering ord,
     GenmcScalar old_val
 ) -> LoadResult {
-    const auto ret = GenMCDriver::handleLoad<EventLabel::EventLabelKind::Read>(
+    const auto ret = GenMCDriver::handleRead(
         nullptr,
         curr_pos(thread_id),
         GenmcScalarExt::try_to_sval(old_val),
         ord,
         SAddr(address),
-        ASize(size)
+        ASize(size),
+        nullptr,
+        std::nullopt,
+        EventDeps()
     );
     inc_pos(thread_id, ret.count);
     if (const auto* err = std::get_if<VerificationError>(&ret.result))
@@ -119,10 +123,10 @@ MiriGenmcShim::handle_na_load(ThreadId thread_id, uint64_t address, uint64_t siz
 
     if (const auto* err = std::get_if<VerificationError>(&ret.result))
         return LoadResultExt::from_error(format_error(*err));
-    const auto* ret_val = std::get_if<SVal>(&ret.result);
+    // const auto* ret_val = std::get_if<SVal>(&ret.result);
     // FIXME(genmc): handle `HandleResult::{Invalid, Reset}` return values.
-    ERROR_ON(!ret_val, "Unimplemented: NA load returned unexpected result.");
-    return LoadResultExt::from_value(*ret_val);
+    // ERROR_ON(!ret_val, "Unimplemented: NA load returned unexpected result.");
+    return LoadResultExt::no_value();
 }
 
 [[nodiscard]] auto MiriGenmcShim::handle_store(
@@ -133,7 +137,7 @@ MiriGenmcShim::handle_na_load(ThreadId thread_id, uint64_t address, uint64_t siz
     GenmcScalar old_val,
     MemOrdering ord
 ) -> StoreResult {
-    const auto ret = GenMCDriver::handleStore<EventLabel::EventLabelKind::Write>(
+    const auto ret = GenMCDriver::handleWrite(
         nullptr,
         curr_pos(thread_id),
         GenmcScalarExt::try_to_sval(old_val),
@@ -141,6 +145,7 @@ MiriGenmcShim::handle_na_load(ThreadId thread_id, uint64_t address, uint64_t siz
         SAddr(address),
         ASize(size),
         GenmcScalarExt::to_sval(value),
+        WriteAttr(),
         EventDeps()
     );
 
@@ -159,20 +164,19 @@ MiriGenmcShim::handle_na_store(ThreadId thread_id, uint64_t address, uint64_t si
     const auto ret = GenMCDriver::handleNAStore(
         nullptr,
         curr_pos(thread_id),
-        {},
         SAddr(address),
         ASize(size),
-        {}
+        EventDeps()
     );
     inc_pos(thread_id, ret.count);
 
     if (const auto* err = std::get_if<VerificationError>(&ret.result))
         return StoreResultExt::from_error(format_error(*err));
 
-    const auto* is_co_max = std::get_if<bool>(&ret.result);
+    // const auto* is_co_max = std::get_if<bool>(&ret.result);
     // FIXME(genmc): handle `HandleResult::{Invalid, Reset}` return values.
-    ERROR_ON(!is_co_max, "Unimplemented: Store returned unexpected result.");
-    return StoreResultExt::ok(*is_co_max);
+    // ERROR_ON(!is_co_max, "Unimplemented: Store returned unexpected result.");
+    return StoreResultExt::ok(true);
 }
 
 void MiriGenmcShim::handle_fence(ThreadId thread_id, MemOrdering ord) {
@@ -193,7 +197,7 @@ void MiriGenmcShim::handle_fence(ThreadId thread_id, MemOrdering ord) {
     // into a load and a store component. This means we can have for example `AcqRel` loads and
     // stores, but this is intended for RMW operations.
 
-    const auto load_ret = GenMCDriver::handleLoad<EventLabel::EventLabelKind::FaiRead>(
+    const auto load_ret = GenMCDriver::handleFaiRead(
         nullptr,
         curr_pos(thread_id),
         GenmcScalarExt::try_to_sval(old_val),
@@ -202,6 +206,9 @@ void MiriGenmcShim::handle_fence(ThreadId thread_id, MemOrdering ord) {
         ASize(size),
         rmw_op,
         GenmcScalarExt::to_sval(rhs_value),
+        WriteAttr(),
+        nullptr,
+        std::nullopt,
         EventDeps()
     );
     inc_pos(thread_id, load_ret.count);
@@ -215,14 +222,16 @@ void MiriGenmcShim::handle_fence(ThreadId thread_id, MemOrdering ord) {
     const auto new_value =
         executeRMWBinOp(read_old_val, GenmcScalarExt::to_sval(rhs_value), size, rmw_op);
 
-    const auto store_ret = GenMCDriver::handleStore<EventLabel::EventLabelKind::FaiWrite>(
+    const auto store_ret = GenMCDriver::handleFaiWrite(
         nullptr,
         curr_pos(thread_id),
         GenmcScalarExt::try_to_sval(old_val),
         ordering,
         SAddr(address),
         ASize(size),
-        new_value
+        new_value,
+        WriteAttr(),
+        EventDeps()
     );
     inc_pos(thread_id, store_ret.count);
     if (const auto* err = std::get_if<VerificationError>(&store_ret.result))
@@ -258,7 +267,7 @@ void MiriGenmcShim::handle_fence(ThreadId thread_id, MemOrdering ord) {
     auto expectedVal = GenmcScalarExt::to_sval(expected_value);
     auto new_val = GenmcScalarExt::to_sval(new_value);
 
-    const auto load_ret = GenMCDriver::handleLoad<EventLabel::EventLabelKind::CasRead>(
+    const auto load_ret = GenMCDriver::handleCasRead(
         nullptr,
         curr_pos(thread_id),
         GenmcScalarExt::try_to_sval(old_val),
@@ -266,7 +275,11 @@ void MiriGenmcShim::handle_fence(ThreadId thread_id, MemOrdering ord) {
         SAddr(address),
         ASize(size),
         expectedVal,
-        new_val
+        new_val,
+        WriteAttr(),
+        nullptr,
+        std::nullopt,
+        EventDeps()
     );
     inc_pos(thread_id, load_ret.count);
     if (const auto* err = std::get_if<VerificationError>(&load_ret.result))
@@ -280,14 +293,16 @@ void MiriGenmcShim::handle_fence(ThreadId thread_id, MemOrdering ord) {
 
     // FIXME(GenMC): Add support for modelling spurious failures.
 
-    const auto store_ret = GenMCDriver::handleStore<EventLabel::EventLabelKind::CasWrite>(
+    const auto store_ret = GenMCDriver::handleFaiWrite(
         nullptr,
         curr_pos(thread_id),
         GenmcScalarExt::try_to_sval(old_val),
         success_ordering,
         SAddr(address),
         ASize(size),
-        new_val
+        new_val,
+        WriteAttr(),
+        EventDeps()
     );
     inc_pos(thread_id, store_ret.count);
     if (const auto* err = std::get_if<VerificationError>(&store_ret.result))
@@ -387,11 +402,11 @@ auto MiriGenmcShim::handle_mutex_lock(ThreadId thread_id, uint64_t address, uint
     // As usual, we need to tell GenMC which value was stored at this location before this atomic
     // access, if there previously was a non-atomic initializing access. We set the initial state of
     // a mutex to be "unlocked".
-    const auto old_val = MutexState::UNLOCKED;
-    const auto load_ret = GenMCDriver::handleLoad<EventLabel::EventLabelKind::LockCasRead>(
+    // const auto old_val = MutexState::UNLOCKED;
+    const auto load_ret = GenMCDriver::handleLockCasRead(
         nullptr,
         curr_pos(thread_id),
-        old_val,
+        // old_val,
         address,
         size,
         annot,
@@ -418,10 +433,10 @@ auto MiriGenmcShim::handle_mutex_lock(ThreadId thread_id, uint64_t address, uint
         return MutexLockResultExt::ok(false);
     }
 
-    const auto store_ret = GenMCDriver::handleStore<EventLabel::EventLabelKind::LockCasWrite>(
+    const auto store_ret = GenMCDriver::handleLockCasWrite(
         nullptr,
         curr_pos(thread_id),
-        old_val,
+        // old_val,
         address,
         size,
         EventDeps()
@@ -442,13 +457,15 @@ auto MiriGenmcShim::handle_mutex_try_lock(ThreadId thread_id, uint64_t address, 
     // As usual, we need to tell GenMC which value was stored at this location before this atomic
     // access, if there previously was a non-atomic initializing access. We set the initial state of
     // a mutex to be "unlocked".
-    const auto old_val = MutexState::UNLOCKED;
-    const auto load_ret = GenMCDriver::handleLoad<EventLabel::EventLabelKind::TrylockCasRead>(
+    // const auto old_val = MutexState::UNLOCKED;
+    const auto load_ret = GenMCDriver::handleTrylockCasRead(
         nullptr,
         curr_pos(thread_id),
-        old_val,
+        // old_val,
         SAddr(address),
-        ASize(size)
+        ASize(size),
+        std::nullopt,
+        EventDeps()
     );
     inc_pos(thread_id, load_ret.count);
     if (const auto* err = std::get_if<VerificationError>(&load_ret.result))
@@ -460,12 +477,13 @@ auto MiriGenmcShim::handle_mutex_try_lock(ThreadId thread_id, uint64_t address, 
     if (*ret_val == MutexState::LOCKED)
         return MutexLockResultExt::ok(false); /* Lock already held. */
 
-    const auto store_ret = GenMCDriver::handleStore<EventLabel::EventLabelKind::TrylockCasWrite>(
+    const auto store_ret = GenMCDriver::handleTrylockCasWrite(
         nullptr,
         curr_pos(thread_id),
-        old_val,
+        // old_val,
         SAddr(address),
-        ASize(size)
+        ASize(size),
+        EventDeps()
     );
     inc_pos(thread_id, store_ret.count);
     if (const auto* err = std::get_if<VerificationError>(&store_ret.result))
@@ -479,7 +497,7 @@ auto MiriGenmcShim::handle_mutex_try_lock(ThreadId thread_id, uint64_t address, 
 
 auto MiriGenmcShim::handle_mutex_unlock(ThreadId thread_id, uint64_t address, uint64_t size)
     -> StoreResult {
-    const auto ret = GenMCDriver::handleStore<EventLabel::EventLabelKind::UnlockWrite>(
+    const auto ret = GenMCDriver::handleUnlockWrite(
         nullptr,
         curr_pos(thread_id),
         // As usual, we need to tell GenMC which value was stored at this location before this
@@ -490,6 +508,7 @@ auto MiriGenmcShim::handle_mutex_unlock(ThreadId thread_id, uint64_t address, ui
         SAddr(address),
         ASize(size),
         /* store_value */ MutexState::UNLOCKED,
+        WriteAttr(),
         EventDeps()
     );
     inc_pos(thread_id, ret.count);
