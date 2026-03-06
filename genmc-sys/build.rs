@@ -160,7 +160,8 @@ fn compile_cpp_dependencies(genmc_path: &Path, always_configure: bool) {
         .out_dir(genmc_build_dir)
         .profile(GENMC_CMAKE_PROFILE)
         .define("BUILD_LLI", "OFF")
-        .define("GENMC_DEBUG", if enable_genmc_debug { "ON" } else { "OFF" });
+        .define("GENMC_DEBUG", if enable_genmc_debug { "ON" } else { "OFF" })
+        .define("EMIT_NA_LABELS", "OFF"); // For testing mode
 
     // The actual compilation happens here:
     let genmc_install_dir = config.build();

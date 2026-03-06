@@ -60,6 +60,7 @@ impl Default for GenmcParams {
     fn default() -> Self {
         Self {
             estimation_max: 1000, // default taken from GenMC
+            testing_limit: -1, // default to no limit
             print_random_schedule_seed: false,
             do_symmetry_reduction: false,
             // GenMC graphs can be quite large since Miri produces a lot of (non-atomic) events.
@@ -118,6 +119,7 @@ mod ffi {
     struct GenmcParams {
         /// Maximum number of executions explored in estimation mode.
         pub estimation_max: u32,
+        pub testing_limit: i32,
         pub print_random_schedule_seed: bool,
         pub do_symmetry_reduction: bool,
         pub print_execution_graphs: ExecutiongraphPrinting,

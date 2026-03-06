@@ -70,6 +70,13 @@ impl GenmcConfig {
                     "'-Zmiri-genmc-estimation-max=...' expects a positive integer argument, but got '{estimation_max_str}'"
                 )
             })?;
+        } else if let Some(testing_limit_str) = trimmed_arg.strip_prefix("testing-limit=") {
+            // Set the maximum size of graph to keep during testing.
+            genmc_config.params.testing_limit = testing_limit_str.parse().ok().ok_or_else(|| {
+                format!(
+                    "'-Zmiri-genmc-testing-limit=...' expects a positive integer argument, but got '{testing_limit_str}'"
+                )
+            })?;
         } else if trimmed_arg == "print-genmc-output" {
             genmc_config.print_genmc_output = true;
         } else if trimmed_arg == "verbose" {

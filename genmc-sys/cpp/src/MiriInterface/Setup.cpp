@@ -114,7 +114,8 @@ static auto to_genmc_verbosity_level(const LogLevel log_level) -> VerbosityLevel
     conf->replayCompletedThreads = true;
 
     // Don't emit labels for non-atomics in the graph for more efficient exploration
-    conf->emitNALabels = false;
+    // This is a constant set during compilation now
+    // conf->emitNALabels = false;
 
     // FIXME(genmc): implement symmetry reduction.
     ERROR_ON(
@@ -135,8 +136,9 @@ static auto to_genmc_verbosity_level(const LogLevel log_level) -> VerbosityLevel
     // Deviation threshold % under which estimation is deemed good enough.
     conf->sdThreshold = 10; // default taken from GenMC
     // Set the mode used for this driver, either estimation or verification.
-    const auto mode = estimation_mode ? GenMCDriver::Mode(GenMCDriver::EstimationMode {})
-                                      : GenMCDriver::Mode(GenMCDriver::VerificationMode {});
+    // const auto mode = estimation_mode ? GenMCDriver::Mode(GenMCDriver::EstimationMode {})
+    //                                   : GenMCDriver::Mode(GenMCDriver::VerificationMode {});
+    const auto mode = GenMCDriver::Mode(GenMCDriver::TestingMode {params.testing_limit});
 
     // Running Miri-GenMC without race detection is not supported.
     // Disabling this option also changes the behavior of the replay scheduler to only schedule
