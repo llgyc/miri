@@ -293,7 +293,7 @@ void MiriGenmcShim::handle_fence(ThreadId thread_id, MemOrdering ord) {
 
     // FIXME(GenMC): Add support for modelling spurious failures.
 
-    const auto store_ret = GenMCDriver::handleFaiWrite(
+    const auto store_ret = GenMCDriver::handleCasWrite(
         nullptr,
         curr_pos(thread_id),
         GenmcScalarExt::try_to_sval(old_val),

@@ -128,7 +128,8 @@ static auto to_genmc_verbosity_level(const LogLevel log_level) -> VerbosityLevel
     // For normal verification, `WF` has the best performance and is the GenMC default.
     // Other scheduling policies are used by GenMC for testing and for modes currently
     // unsupported with Miri such as bounding, which uses LTR.
-    conf->schedulePolicy = estimation_mode ? SchedulePolicy::WFR : SchedulePolicy::WF;
+    // conf->schedulePolicy = estimation_mode ? SchedulePolicy::WFR : SchedulePolicy::WF;
+    conf->schedulePolicy = SchedulePolicy::WFR;
 
     // Set the min and max number of executions tested in estimation mode.
     conf->estimationMin = 10; // default taken from GenMC
